@@ -1,0 +1,40 @@
+{
+  "name": "@objectflow/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist .turbo node_modules"
+  },
+  "dependencies": {
+    "@objectflow/agents-core": "workspace:*",
+    "@objectflow/config": "workspace:*",
+    "@objectflow/db": "workspace:*",
+    "@objectflow/events": "workspace:*",
+    "@objectflow/schema-infer": "workspace:*",
+    "@anthropic-ai/sdk": "^0.100.0",
+    "@aws-sdk/client-s3": "^3.717.0",
+    "@aws-sdk/s3-request-presigner": "^3.717.0",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/helmet": "^12.0.1",
+    "@mastra/core": "^0.2.0",
+    "fastify": "^5.2.0",
+    "inngest": "^3.27.4",
+    "ioredis": "^5.4.2",
+    "pino": "^9.5.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.17.0",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

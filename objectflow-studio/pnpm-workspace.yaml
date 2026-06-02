@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Approve postinstall build scripts. Native binaries we need; ML/proto stuff we don't.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  onnxruntime-node: false
+  protobufjs: false
