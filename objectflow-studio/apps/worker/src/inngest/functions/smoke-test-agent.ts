@@ -1,4 +1,4 @@
-import { inngest } from '../client.js';
+import { inngest } from '../instance.js';
 import { runSmokeTestAgent } from '../../agents/smoke-test.js';
 
 /**

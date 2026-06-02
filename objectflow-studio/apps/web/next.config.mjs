@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 // Load root .env.local so monorepo-wide secrets work without duplication.
 // Next.js only reads .env.local inside the app directory by default.
 const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: resolve(__dirname, '../../.env.local') });
+config({ path: resolve(__dirname, '../../.env.local'), override: true });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

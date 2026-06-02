@@ -1,12 +1,5 @@
-import { Inngest } from 'inngest';
-import { env } from '@objectflow/config';
-import { events } from '@objectflow/events';
+import { inngest } from './instance.js';
 import { smokeTestAgentFn } from './functions/smoke-test-agent.js';
 
-export const inngest = new Inngest({
-  id: 'objectflow-worker',
-  eventKey: env.INNGEST_EVENT_KEY,
-  schemas: events,
-});
-
+export { inngest };
 export const inngestFunctions = [smokeTestAgentFn];

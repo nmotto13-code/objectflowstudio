@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'drizzle-kit';
 
 // Load from monorepo root .env.local (drizzle-kit runs cwd = packages/db)
-config({ path: resolve(process.cwd(), '../../.env.local') });
+config({ path: resolve(process.cwd(), '../../.env.local'), override: true });
 
 export default defineConfig({
   // Explicit list — drizzle-kit's CJS loader doesn't grok `.js` suffix in re-exports,

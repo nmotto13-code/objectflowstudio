@@ -5,7 +5,7 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 
 // Load from monorepo root .env.local (script runs cwd = packages/db)
-config({ path: resolve(process.cwd(), '../../.env.local') });
+config({ path: resolve(process.cwd(), '../../.env.local'), override: true });
 
 async function main() {
   const url = process.env.DATABASE_URL;
