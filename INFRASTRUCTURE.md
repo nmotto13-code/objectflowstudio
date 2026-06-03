@@ -99,10 +99,14 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ---
 
-### ⚪ Langfuse — AI observability
+### ✅ Langfuse — AI observability
 **Role in the product:** Records every AI call the platform makes — which agent called which model with what prompt, how long it took, how much it cost, what tools it invoked, what the user accepted or rejected afterward. Lets us answer "why did the SchemaInferenceAgent get this wrong?" by replaying the exact run.
 
 **Why it matters:** AI quality is impossible to manage without traces. Costs also balloon silently without per-workspace tracking. Langfuse gives us both.
+
+**What's wired today:** US Cloud project `objectFlowStudio` in org `objectFlow`. Tracing is OpenTelemetry-based: the worker initializes `@opentelemetry/sdk-node` with `LangfuseSpanProcessor` from `@langfuse/otel`, plus the OpenInference `AnthropicInstrumentation` that auto-traces every `client.messages.create()` call. The smoke run produced an `Anthropic Messages` generation (model `claude-sonnet-4-6`, 20 input + 9 output tokens) nested under a `smoke-test-agent` span. Every future agent using the Anthropic SDK gets the same auto-instrumentation for free — no agent-level code changes required.
+
+**Setup pattern (follow this for any new worker entry point):** import order in `apps/worker/src/server.ts` matters — `load-env.js` first, `telemetry.js` second, then everything else. The OpenInference patch must be active before any module touches the Anthropic SDK. `shouldExportSpan` is composed with `isDefaultExportSpan` to allowlist OpenInference + our custom `objectflow-worker` tracer while dropping noisy Inngest internals.
 
 ---
 

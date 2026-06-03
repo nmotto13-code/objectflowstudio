@@ -57,7 +57,7 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 - [x] Register Inngest workflow that invokes the agent calling Claude — **smoke verified**: `system/smoke.test.requested` → 3s → `{ ok: true, agentResponse: "ObjectFlow L0 ready" }` via Claude Sonnet 4.6
 - [ ] Wire R2 with signed-upload smoke test
 - [ ] Wire Sentry in both apps
-- [ ] Wire Langfuse for agent traces
+- [x] Wire Langfuse for agent traces (OTel auto-instrumentation via `@langfuse/otel` + `@arizeai/openinference-instrumentation-anthropic`; smoke produces `Anthropic Messages` GENERATION with model + tokens nested under `smoke-test-agent` SPAN. Confirmed via Langfuse API on US Cloud)
 - [ ] Wire Better Stack (or Axiom) for logs
 - [ ] GitHub Actions CI: install + lint + typecheck + test on PR
 - [ ] Deploy `apps/web` to Vercel
