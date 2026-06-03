@@ -1,6 +1,9 @@
 // MUST be first — populates process.env from .env.local before any module
 // (like @objectflow/config) reads env vars.
 import './load-env.js';
+// MUST be second — initialize OpenTelemetry + Anthropic auto-instrumentation
+// before any module imports/uses the Anthropic SDK.
+import './telemetry.js';
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';

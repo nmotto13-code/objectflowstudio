@@ -56,9 +56,11 @@ const schema = z.object({
   R2_BUCKET: optionalString(),
   R2_PUBLIC_URL: optionalString(),
 
-  // Langfuse
+  // Langfuse — current SDK convention is LANGFUSE_BASE_URL; LANGFUSE_HOST kept
+  // for backward compat with the old `langfuse` client package.
   LANGFUSE_PUBLIC_KEY: optionalString(),
   LANGFUSE_SECRET_KEY: optionalString(),
+  LANGFUSE_BASE_URL: z.string().url().default('https://cloud.langfuse.com'),
   LANGFUSE_HOST: z.string().url().default('https://cloud.langfuse.com'),
 
   // Sentry
