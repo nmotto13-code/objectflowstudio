@@ -53,8 +53,8 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 - [x] Connect to live Railway Redis (PING/PONG, SET/GET OK, Redis 8.2.1)
 - [x] Wire Auth0 in `apps/web` (Google sign-in verified end-to-end, protected route renders session claims)
 - [ ] Mirror Auth0 Orgs/users/roles into DB on JWT verify
-- [ ] Wire Inngest (signing key, dev server, deploy endpoint)
-- [ ] Register one noop Inngest workflow that invokes a Mastra agent calling Claude — smoke test
+- [x] Wire Inngest (event + signing keys in env, dev server discovers worker, `smoke-test-agent` function registered, framework-agnostic `inngest/edge` handler used after pinning fastify v5 issue)
+- [x] Register Inngest workflow that invokes the agent calling Claude — **smoke verified**: `system/smoke.test.requested` → 3s → `{ ok: true, agentResponse: "ObjectFlow L0 ready" }` via Claude Sonnet 4.6
 - [ ] Wire R2 with signed-upload smoke test
 - [ ] Wire Sentry in both apps
 - [ ] Wire Langfuse for agent traces

@@ -68,10 +68,14 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ---
 
-### ⚪ Inngest — durable workflow orchestrator
+### ✅ Inngest — durable workflow orchestrator
 **Role in the product:** Runs the multi-step pipelines that string our agents together. When a user uploads a file, the pipeline is: parse → infer schema → wait for human confirmation → ingest → notify. Inngest tracks each step, retries failures automatically, and gives us a UI to see what's happening with every workflow run. If a step fails midway through, the workflow resumes from where it left off instead of starting over.
 
 **Why we need it:** Multi-step AI workflows fail often (rate limits, model timeouts, transient errors). Without Inngest we'd be hand-rolling retry logic, durable state, and observability for every workflow. With it, we describe the workflow as code and Inngest handles the operational concerns.
+
+**What's wired today:** Event Key + Signing Key from Inngest Cloud in env. Local dev server (`inngest-cli@latest dev`) discovers the Fastify worker at `http://localhost:4000/api/inngest` and registers all functions. First function `smoke-test-agent` triggered by `system/smoke.test.requested` — verified end-to-end (event → workflow → agent → Claude → completed run with `agentResponse: "ObjectFlow L0 ready"`).
+
+**Known follow-ups:** Inngest's own Fastify adapter (`inngest/fastify@3.54.2`) is broken — we use the framework-agnostic `inngest/edge` handler bridged into a Fastify route in `apps/worker/src/server.ts`. Working fine; revisit when Inngest fixes their Fastify adapter.
 
 ---
 
@@ -80,14 +84,18 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 **Why a framework instead of raw Anthropic SDK calls:** Without one, every agent reinvents memory, tool registration, and conversation state. Mastra handles these once. We still use the Anthropic SDK underneath for the actual model calls.
 
+**Status today:** Installed but not yet adopted — the L0 smoke agent (`runSmokeTestAgent`) uses the raw Anthropic SDK directly. Mastra primitives come in when we build the real agents in L3+ (IngestionAgent, SchemaInferenceAgent, etc.).
+
 ---
 
-### ⚪ Anthropic — the AI model provider
+### ✅ Anthropic — the AI model provider
 **Role in the product:** Every agent's brain. Two models in active use:
 - **Claude Sonnet 4.6** — default for most agent work (validation, curation suggestions, chat). Fast and cheap enough to run frequently.
 - **Claude Opus 4.7** — used for hard reasoning tasks like schema inference from messy uploads. More expensive per call but produces better schemas, which matters because schema errors cascade through everything downstream.
 
 **Why Anthropic over OpenAI/Google:** Claude's tool-use reliability is the best in class right now, which matters when the AssistantAgent is chaining tool calls to other agents. Also: prompt caching support makes long-context agent runs much cheaper.
+
+**What's wired today:** API key in env, account funded with credits. SDK client lives in `packages/agents-core`. First successful call: Claude Sonnet 4.6 returned `"ObjectFlow L0 ready"` from the L0 smoke agent. Model aliases `claude-sonnet-4-6` and `claude-opus-4-7` are set in env, used by every agent that calls into agents-core.
 
 ---
 
