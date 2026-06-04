@@ -55,7 +55,7 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 - [ ] Mirror Auth0 Orgs/users/roles into DB on JWT verify
 - [x] Wire Inngest (event + signing keys in env, dev server discovers worker, `smoke-test-agent` function registered, framework-agnostic `inngest/edge` handler used after pinning fastify v5 issue)
 - [x] Register Inngest workflow that invokes the agent calling Claude — **smoke verified**: `system/smoke.test.requested` → 3s → `{ ok: true, agentResponse: "ObjectFlow L0 ready" }` via Claude Sonnet 4.6
-- [ ] Wire R2 with signed-upload smoke test
+- [x] Wire R2 with signed-upload smoke test (presign PUT → fetch upload → presign GET → fetch download → server-side download → delete; full round-trip in `apps/worker/src/storage/r2.ts` + verify-r2-smoke.ts)
 - [x] Wire Sentry in both apps (objectflow-web + objectflow-worker projects; web smoke-test issue captured via Next.js onRequestError; worker via Fastify error handler. Skipped `@sentry/profiling-node` — no Node 24/Windows binary)
 - [x] Wire Langfuse for agent traces (OTel auto-instrumentation via `@langfuse/otel` + `@arizeai/openinference-instrumentation-anthropic`; smoke produces `Anthropic Messages` GENERATION with model + tokens nested under `smoke-test-agent` SPAN. Confirmed via Langfuse API on US Cloud)
 - [ ] Wire Better Stack (or Axiom) for logs

@@ -61,10 +61,12 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ---
 
-### ⚪ Cloudflare R2 — file and document storage
+### ✅ Cloudflare R2 — file and document storage
 **Role in the product:** Holds anything that isn't a database row — uploaded CSVs/Excel/PDFs, generated exports, AI-produced artifacts, attached files on records. Files get a signed URL the browser uploads to directly, so our servers never have to stream them.
 
 **Why R2 over S3:** Same API as Amazon S3 (drop-in compatible) but no egress fees. When we eventually let customers download large exports or process large files repeatedly, this saves real money. Cloudflare's network is also faster for global distribution.
+
+**What's wired today:** Bucket `objectflow-uploads` in the account, account-level API token with Object Read+Write scope. Worker module `apps/worker/src/storage/r2.ts` exposes `presignUpload`, `presignDownload`, `downloadObject`, `deleteObject`, `objectExists` — all using `@aws-sdk/client-s3` (already pinned) pointed at R2's S3-compatible endpoint. Smoke test verified the full round-trip: presign → browser-style PUT → existence check → presigned GET → server-side download → delete. The browser will use `presignUpload` (via a tRPC procedure in L3) so file bytes never touch our worker memory during upload.
 
 ---
 

@@ -51,6 +51,7 @@ const schema = z.object({
 
   // Cloudflare R2
   R2_ACCOUNT_ID: optionalString(),
+  R2_ENDPOINT: optionalString(), // https://<account>.r2.cloudflarestorage.com
   R2_ACCESS_KEY_ID: optionalString(),
   R2_SECRET_ACCESS_KEY: optionalString(),
   R2_BUCKET: optionalString(),
