@@ -63,8 +63,11 @@ const schema = z.object({
   LANGFUSE_BASE_URL: z.string().url().default('https://cloud.langfuse.com'),
   LANGFUSE_HOST: z.string().url().default('https://cloud.langfuse.com'),
 
-  // Sentry
-  SENTRY_DSN: optionalString(),
+  // Sentry — separate projects for web vs worker so we can filter dashboards
+  SENTRY_DSN: optionalString(), // legacy alias; prefer SENTRY_DSN_{WEB,WORKER}
+  SENTRY_DSN_WEB: optionalString(),
+  SENTRY_DSN_WORKER: optionalString(),
+  NEXT_PUBLIC_SENTRY_DSN_WEB: optionalString(),
 
   // Logs
   LOGTAIL_SOURCE_TOKEN: optionalString(),

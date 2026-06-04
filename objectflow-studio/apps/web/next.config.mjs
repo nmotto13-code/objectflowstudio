@@ -1,6 +1,7 @@
 import { config } from 'dotenv';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withSentryConfig } from '@sentry/nextjs';
 
 // Load root .env.local so monorepo-wide secrets work without duplication.
 // Next.js only reads .env.local inside the app directory by default.
@@ -25,4 +26,17 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// withSentryConfig handles source-map uploads, route auto-instrumentation,
+// and tunnel routing so ad-blockers don't drop error reports. Build-time
+// upload requires a SENTRY_AUTH_TOKEN — without it source maps simply aren't
+// uploaded but errors still report.
+export default withSentryConfig(nextConfig, {
+  org: 'nathan-motto',
+  project: 'objectflow-web',
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  // Routes Sentry events through /monitoring to bypass ad-blockers.
+  tunnelRoute: '/monitoring',
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});

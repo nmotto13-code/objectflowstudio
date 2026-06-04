@@ -9,3 +9,5 @@ allowBuilds:
   unrs-resolver: true
   onnxruntime-node: false
   protobufjs: false
+  '@sentry/cli': true
+  '@sentry/profiling-node': true

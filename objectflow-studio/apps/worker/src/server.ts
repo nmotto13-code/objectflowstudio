@@ -1,7 +1,10 @@
 // MUST be first — populates process.env from .env.local before any module
 // (like @objectflow/config) reads env vars.
 import './load-env.js';
-// MUST be second — initialize OpenTelemetry + Anthropic auto-instrumentation
+// MUST be second — Sentry must initialize before Fastify/http modules so it
+// can install its automatic instrumentation hooks.
+import { Sentry } from './sentry.js';
+// MUST be third — OpenTelemetry + Anthropic auto-instrumentation for Langfuse,
 // before any module imports/uses the Anthropic SDK.
 import './telemetry.js';
 
@@ -23,11 +26,23 @@ const app = Fastify({
 await app.register(helmet);
 await app.register(cors, { origin: true });
 
+// Forward any unhandled Fastify error to Sentry with the request context.
+app.setErrorHandler((err, req, reply) => {
+  Sentry.captureException(err, { tags: { route: req.routeOptions?.url ?? req.url } });
+  app.log.error(err);
+  reply.status(500).send({ ok: false, error: err.message });
+});
+
 app.get('/health', async () => ({
   ok: true,
   service: 'worker',
   timestamp: new Date().toISOString(),
 }));
+
+// Intentional throw for smoke-testing Sentry. Curl it to verify reports land.
+app.get('/debug-sentry', async () => {
+  throw new Error('Worker Sentry smoke test — intentional error');
+});
 
 app.get('/health/db', async (_req, reply) => {
   try {
