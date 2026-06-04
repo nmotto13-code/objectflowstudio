@@ -110,10 +110,12 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ---
 
-### ⚪ Sentry — error tracking
+### ✅ Sentry — error tracking
 **Role in the product:** When something throws in production — a TypeScript error, a failed database query, a broken UI render — Sentry captures the stack trace, the user's session, the URL, and any breadcrumbs leading up to it. We get alerted instead of finding out from a customer support ticket.
 
 **Why it matters:** A production bug discovered by a customer costs trust; a production bug discovered by Sentry before any customer sees it is just an engineering task.
+
+**What's wired today:** Two Sentry projects under one org — `objectflow-web` (Next.js) and `objectflow-worker` (Fastify). Web uses Next.js's `instrumentation.ts` register hook plus `onRequestError` for server components / API routes; the next.config.mjs is wrapped with `withSentryConfig` for source-map upload and the `/monitoring` tunnel route (bypasses ad-blockers). Worker init lives at `apps/worker/src/sentry.ts`, imported as the 2nd line of `server.ts` (after env load) so http hooks register before Fastify; a Fastify `setErrorHandler` forwards any uncaught throw to `captureException` with the route as a tag. Both apps tag events with `service: web|worker` for dashboard filtering. CPU profiling skipped — `@sentry/profiling-node` has no prebuilt binary for Node 24 on Windows in 8.55.2.
 
 ---
 
