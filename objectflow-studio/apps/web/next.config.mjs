@@ -28,6 +28,19 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  // Workspace packages use NodeNext-style `.js` extensions in their internal
+  // imports (the worker compiles them under NodeNext, so the .js extensions
+  // are mandatory there). Webpack doesn't auto-substitute `.js` for `.ts` at
+  // resolve time, so we tell it to — the canonical Next fix for consuming
+  // NodeNext TS packages via transpilePackages.
+  webpack: (config) => {
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias || {}),
+      '.js': ['.js', '.ts', '.tsx'],
+      '.mjs': ['.mjs', '.mts'],
+    };
+    return config;
+  },
 };
 
 // withSentryConfig handles source-map uploads, route auto-instrumentation,

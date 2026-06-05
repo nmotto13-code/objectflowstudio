@@ -1,0 +1,102 @@
+name: CI
+
+# Run on every PR and every push to main. The push-to-main run is what gives
+# us the green check on the default branch (post-merge verification).
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel any older in-progress run for the same PR / branch. Saves Actions
+# minutes when someone force-pushes a rapid series of fixups.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Sensible defaults
+defaults:
+  run:
+    working-directory: objectflow-studio
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: install · lint · typecheck · build
+    runs-on: ubuntu-latest
+    # Single job (vs. parallel jobs per check) is the right call for a repo this
+    # size: install dominates the wall clock, and turbo already parallelises the
+    # 10 packages across CPU cores. Splitting would just multiply install cost.
+    timeout-minutes: 15
+
+    env:
+      # CI marker — picked up by Next config (silences Sentry warnings) and by
+      # anything else that wants to know it's running in CI.
+      CI: 'true'
+      # Sentinel values that satisfy packages/config/src/env.ts validation
+      # without leaking real secrets. Required because Next evaluates server
+      # routes at build time and `getDb()` paths touch DATABASE_URL.
+      # AUTH0_SECRET min length is 32; WORKER_INTERNAL_SECRET min is 16.
+      DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci'
+      AUTH0_SECRET: 'ci-dummy-auth0-secret-32chars-minimum-xx'
+      WORKER_INTERNAL_SECRET: 'ci-dummy-worker-secret-16ch'
+      # Skip Sentry source-map upload during CI — no SENTRY_AUTH_TOKEN means
+      # the @sentry/nextjs build hook silently skips upload, which is what
+      # we want for PR builds. Production source-maps are uploaded by Vercel.
+      SENTRY_SUPPRESS_GLOBAL_ERROR_HANDLER_FILE_WARNING: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        # Pin to a specific version — must match packageManager in package.json.
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.0
+          run_install: false
+
+      - name: Setup Node
+        # Node 22+ per `engines.node` in package.json. Caching keyed on
+        # pnpm-lock.yaml dramatically cuts install time on repeat runs.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: objectflow-studio/pnpm-lock.yaml
+
+      - name: Cache turbo
+        # Turbo's local cache lets unchanged packages skip rebuild on PR runs
+        # that touch only one package. Keyed on the full SHA so each commit
+        # gets a unique slot, with restore-keys falling back to the most
+        # recent main-branch cache.
+        uses: actions/cache@v4
+        with:
+          path: objectflow-studio/.turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies
+        # --frozen-lockfile fails the build if pnpm-lock.yaml is out of sync
+        # with package.json — protects against PRs that forget to commit the
+        # lockfile update.
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        # `pnpm test` runs `turbo run test`. No package has test scripts yet,
+        # so turbo treats this as a no-op. Wiring the step now means real
+        # tests added later (vitest, playwright) auto-run without touching CI.
+        run: pnpm test

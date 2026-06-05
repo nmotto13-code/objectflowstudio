@@ -18,10 +18,17 @@
     "secrets:pull": "doppler secrets download --no-file --format env"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.2.7",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "prettier": "^3.4.2",
+    "rimraf": "^6.0.1",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
-    "@types/node": "^22.10.2",
-    "rimraf": "^6.0.1",
-    "prettier": "^3.4.2"
+    "typescript-eslint": "^8.60.1"
   }
 }
