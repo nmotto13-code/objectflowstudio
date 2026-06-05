@@ -8,6 +8,15 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ## Live infrastructure
 
+### ✅ GitHub Actions — continuous integration
+**Role in the product:** The guardrail that catches broken code before it merges. Every PR and every push to `main` runs install + lint + typecheck + build + test. If anything fails, the PR can't merge (once branch protection is enabled) and the failure is visible right in the PR.
+
+**Why it matters:** Local dev environments drift — different Node versions, missing dependencies, accidental untracked files in the working tree. CI runs in a clean Ubuntu container with the exact pnpm/Node versions pinned in `package.json`, so a green check means "this would build for any teammate who pulled fresh." It also enforces `pnpm-lock.yaml` consistency via `--frozen-lockfile`, catching PRs that forgot to commit lockfile updates.
+
+**What's wired today:** `.github/workflows/ci.yml` — single job on `ubuntu-latest`, pnpm 11.5.0 + Node 22, with both the pnpm store and Turbo's build cache layered for fast incremental runs. Sentinel env values (dummy Postgres URL, 32-char dummy Auth0 secret, 16-char worker secret) satisfy `packages/config` validation during Next's build-time route evaluation without involving real secrets. Concurrency group cancels superseded runs on rapid force-pushes. First run on commit `63ad178` went green in 1m 44s. Future steps will add the Doppler GitHub Actions integration for E2E tests that need real credentials.
+
+---
+
 ### ✅ Doppler — secret management
 **Role in the product:** Single source of truth for every secret across every environment. Dev, staging, prod, and CI all read from Doppler instead of from plaintext `.env` files. When we rotate an API key, we update one value in Doppler and every environment that integrates with it picks up the new value automatically.
 

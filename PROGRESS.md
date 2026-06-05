@@ -59,7 +59,7 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 - [x] Wire Sentry in both apps (objectflow-web + objectflow-worker projects; web smoke-test issue captured via Next.js onRequestError; worker via Fastify error handler. Skipped `@sentry/profiling-node` — no Node 24/Windows binary)
 - [x] Wire Langfuse for agent traces (OTel auto-instrumentation via `@langfuse/otel` + `@arizeai/openinference-instrumentation-anthropic`; smoke produces `Anthropic Messages` GENERATION with model + tokens nested under `smoke-test-agent` SPAN. Confirmed via Langfuse API on US Cloud)
 - [x] Wire Better Stack for logs (`@logtail/pino` transport, multi-target to stdout + Better Stack; verified live in dashboard — startup, request lifecycle, error capture all flowing. Web-side source pending.)
-- [ ] GitHub Actions CI: install + lint + typecheck + test on PR
+- [x] GitHub Actions CI: install + lint + typecheck + build + test on PR + push-to-main (`.github/workflows/ci.yml`; first run green in 1m 44s on commit `63ad178`; pnpm + turbo caching; concurrency cancels superseded runs)
 - [ ] Deploy `apps/web` to Vercel
 - [ ] Deploy `apps/worker` to Railway
 - [ ] End-to-end live smoke: hit Vercel URL → login → trigger Inngest workflow on Railway → agent call → Langfuse trace appears

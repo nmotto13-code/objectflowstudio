@@ -36,6 +36,11 @@ jobs:
       # CI marker — picked up by Next config (silences Sentry warnings) and by
       # anything else that wants to know it's running in CI.
       CI: 'true'
+      # Opt into Node 24 for the actions runtime itself. GitHub deprecates the
+      # Node 20 actions runtime on 2026-06-16 (default flips to Node 24 then).
+      # Setting this now means we run on Node 24 today and don't get caught
+      # by the flip.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       # Sentinel values that satisfy packages/config/src/env.ts validation
       # without leaking real secrets. Required because Next evaluates server
       # routes at build time and `getDb()` paths touch DATABASE_URL.
