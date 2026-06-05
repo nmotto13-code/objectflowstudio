@@ -8,6 +8,15 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ## Live infrastructure
 
+### ✅ Doppler — secret management
+**Role in the product:** Single source of truth for every secret across every environment. Dev, staging, prod, and CI all read from Doppler instead of from plaintext `.env` files. When we rotate an API key, we update one value in Doppler and every environment that integrates with it picks up the new value automatically.
+
+**Why it matters:** With ~12 secrets across 8 services (Postgres, Redis, Auth0, Anthropic, Inngest, Langfuse, Sentry, R2, Better Stack), the manual alternative is pasting each value into every dashboard whenever anything rotates — a multi-step manual process that drifts out of sync. Doppler eliminates the drift and the plaintext-on-disk attack surface.
+
+**What's wired today:** Project `objectflow-studio` with a `dev` config holding every secret previously in `.env.local`. The CLI is installed locally (v3.76) and the project is bound (machine-level config under `D:\objectflow\objectflow-studio`). Local dev workflow: `doppler run -- pnpm dev` (also available as `pnpm dev:doppler`). `.env.local` has been deleted from disk; the env-loaders in each app and the db package now check `existsSync` before reading it, so the file is purely optional fallback for collaborators not on Doppler. Integrations to Vercel + Railway + GitHub Actions are deferred to L0's deploy phase.
+
+---
+
 ### ✅ Railway — Postgres database
 **Role in the product:** The single source of truth for everything durable. Every piece of customer data — workspaces, users, business objects, schemas, records, audit logs, agent run history — lives here. When a user uploads a file, the file metadata, inferred schema, ingested rows, and every approval decision afterward all end up in this database. If we lost it, we'd lose the product; if we corrupted it, customers would lose trust.
 
