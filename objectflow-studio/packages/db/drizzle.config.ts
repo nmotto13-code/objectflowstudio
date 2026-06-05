@@ -1,9 +1,13 @@
+import { existsSync } from 'node:fs';
 import { config } from 'dotenv';
 import { resolve } from 'node:path';
 import { defineConfig } from 'drizzle-kit';
 
-// Load from monorepo root .env.local (drizzle-kit runs cwd = packages/db)
-config({ path: resolve(process.cwd(), '../../.env.local'), override: true });
+// Preferred: `doppler run -- pnpm db:generate`. Fallback: root .env.local.
+const envPath = resolve(process.cwd(), '../../.env.local');
+if (existsSync(envPath)) {
+  config({ path: envPath, override: true });
+}
 
 export default defineConfig({
   // Explicit list — drizzle-kit's CJS loader doesn't grok `.js` suffix in re-exports,

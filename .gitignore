@@ -40,6 +40,9 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# Local backups of pre-Doppler env files (D: only, never push)
+.local-backups/
+
 # Drizzle metadata
 drizzle/meta/
 

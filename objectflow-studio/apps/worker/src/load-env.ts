@@ -1,12 +1,24 @@
-// Loads .env.local from the monorepo root BEFORE any module that reads env vars.
-// Must be the first import in every entry point (server.ts, verify-smoke scripts).
+// Loads .env.local from the monorepo root as a fallback for the non-Doppler
+// dev workflow. Must be the first import in every entry point.
+//
+// Workflow precedence:
+//   1. Vars injected by `doppler run` (preferred) — already in process.env
+//   2. Vars in .env.local at the monorepo root (legacy fallback if file exists)
+//   3. Nothing — Zod env validation will fail loudly
+//
+// If both #1 and #2 are present, #2 overrides — but the preferred workflow is
+// to delete .env.local once Doppler is set up.
+
+import { existsSync } from 'node:fs';
 import { config } from 'dotenv';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// From apps/worker/src or apps/worker/dist back up to monorepo root.
-// `override: true` is critical — Claude Code / harness shells sometimes
-// pre-set env vars (e.g. ANTHROPIC_API_KEY="") that would otherwise win over
-// .env.local. For local dev the file should always be the source of truth.
-config({ path: resolve(__dirname, '../../../.env.local'), override: true });
+const envPath = resolve(__dirname, '../../../.env.local');
+
+if (existsSync(envPath)) {
+  // override:true keeps the override-empty-shell-vars behavior we used
+  // pre-Doppler. With Doppler, this file usually doesn't exist.
+  config({ path: envPath, override: true });
+}

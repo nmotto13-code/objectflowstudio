@@ -1,12 +1,16 @@
+import { existsSync } from 'node:fs';
 import { config } from 'dotenv';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withSentryConfig } from '@sentry/nextjs';
 
-// Load root .env.local so monorepo-wide secrets work without duplication.
-// Next.js only reads .env.local inside the app directory by default.
+// Preferred workflow: secrets injected by `doppler run -- pnpm dev`. Fallback:
+// root .env.local if it exists (legacy, for collaborators without Doppler).
 const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: resolve(__dirname, '../../.env.local'), override: true });
+const envPath = resolve(__dirname, '../../.env.local');
+if (existsSync(envPath)) {
+  config({ path: envPath, override: true });
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
