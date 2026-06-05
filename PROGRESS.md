@@ -58,7 +58,7 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 - [x] Wire R2 with signed-upload smoke test (presign PUT → fetch upload → presign GET → fetch download → server-side download → delete; full round-trip in `apps/worker/src/storage/r2.ts` + verify-r2-smoke.ts)
 - [x] Wire Sentry in both apps (objectflow-web + objectflow-worker projects; web smoke-test issue captured via Next.js onRequestError; worker via Fastify error handler. Skipped `@sentry/profiling-node` — no Node 24/Windows binary)
 - [x] Wire Langfuse for agent traces (OTel auto-instrumentation via `@langfuse/otel` + `@arizeai/openinference-instrumentation-anthropic`; smoke produces `Anthropic Messages` GENERATION with model + tokens nested under `smoke-test-agent` SPAN. Confirmed via Langfuse API on US Cloud)
-- [ ] Wire Better Stack (or Axiom) for logs
+- [x] Wire Better Stack for logs (`@logtail/pino` transport, multi-target to stdout + Better Stack; verified live in dashboard — startup, request lifecycle, error capture all flowing. Web-side source pending.)
 - [ ] GitHub Actions CI: install + lint + typecheck + test on PR
 - [ ] Deploy `apps/web` to Vercel
 - [ ] Deploy `apps/worker` to Railway

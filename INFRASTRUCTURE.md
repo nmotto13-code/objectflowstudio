@@ -121,10 +121,12 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ---
 
-### ⚪ Better Stack — log aggregation
+### ✅ Better Stack — log aggregation
 **Role in the product:** Collects logs from every running service (web app, worker, background jobs) into one searchable place. When something goes wrong, we can correlate logs from the moment a user clicked a button to the moment a worker failed to process the resulting job.
 
 **Why it matters:** Distributed systems are unobservable without centralized logs. Print statements to console don't survive a server restart, and grepping across 5 services is unworkable.
+
+**What's wired today:** Worker `objectflow-worker` source created on Better Stack (JavaScript integration). Pino transport configured in `apps/worker/src/server.ts` with two targets: stdout for local dev visibility, `@logtail/pino` for shipment. Transport runs in a pino worker thread so shipping never blocks the request loop. Verified live — startup, request lifecycle, and error-level lines all appear in the Better Stack live tail within ~2s. **Follow-up:** create a second source for the Next.js web app and wire it (Next.js doesn't use pino by default — needs its own logger config or middleware).
 
 ---
 

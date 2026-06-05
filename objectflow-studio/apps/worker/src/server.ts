@@ -16,9 +16,32 @@ import { env } from '@objectflow/config';
 import { inngest, inngestFunctions } from './inngest/client.js';
 import { getDb, sql } from '@objectflow/db';
 
+// Pino transport configuration: ship logs to Better Stack when configured,
+// otherwise write to stdout only (for local dev). The transport runs in a
+// worker thread so log shipping never blocks the request loop.
+const transport = env.LOGTAIL_SOURCE_TOKEN
+  ? {
+      targets: [
+        // stdout pretty in dev / json in prod
+        {
+          target: 'pino/file',
+          level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+          options: { destination: 1 },
+        },
+        // Better Stack
+        {
+          target: '@logtail/pino',
+          level: 'info',
+          options: { sourceToken: env.LOGTAIL_SOURCE_TOKEN, options: { sendLogsToBetterStack: true } },
+        },
+      ],
+    }
+  : undefined;
+
 const app = Fastify({
   logger: {
     level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+    ...(transport ? { transport } : {}),
   },
   bodyLimit: 10 * 1024 * 1024,
 });

@@ -72,7 +72,6 @@ export async function presignDownload(opts: {
 export async function downloadObject(key: string): Promise<Uint8Array> {
   const res = await client().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
   if (!res.Body) throw new Error(`R2 object ${key} returned empty body`);
-  // @ts-expect-error transformToByteArray is a runtime method added by the SDK
   return res.Body.transformToByteArray();
 }
 
