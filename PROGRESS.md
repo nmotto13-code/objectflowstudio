@@ -60,7 +60,7 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 - [x] Wire Langfuse for agent traces (OTel auto-instrumentation via `@langfuse/otel` + `@arizeai/openinference-instrumentation-anthropic`; smoke produces `Anthropic Messages` GENERATION with model + tokens nested under `smoke-test-agent` SPAN. Confirmed via Langfuse API on US Cloud)
 - [x] Wire Better Stack for logs (`@logtail/pino` transport, multi-target to stdout + Better Stack; verified live in dashboard — startup, request lifecycle, error capture all flowing. Web-side source pending.)
 - [x] GitHub Actions CI: install + lint + typecheck + build + test on PR + push-to-main (`.github/workflows/ci.yml`; first run green in 1m 44s on commit `63ad178`; pnpm + turbo caching; concurrency cancels superseded runs)
-- [ ] Deploy `apps/web` to Vercel
+- [x] Deploy `apps/web` to Vercel — project `ace-creative/objectflow-studio-web`, production live at `https://objectflow-studio-web.vercel.app` (deployment `dpl_DSa4FNRLrh8QdBknGKhssDbeHstp`); 6 routes + 154kB middleware built green on Next.js 15.5.19 (forced upgrade from 15.1.2 — Vercel blocked the older version over CVE-2025-29927). Doppler→Vercel sync covers all 3 environments with 34 app secrets each. Vercel SSO Deployment Protection on (401 to unauth requests is expected). Two carry-overs to L1: split a `prd` Doppler config so Production stops reading dev URLs, and install the Vercel GitHub App so pushes auto-deploy.
 - [ ] Deploy `apps/worker` to Railway
 - [ ] End-to-end live smoke: hit Vercel URL → login → trigger Inngest workflow on Railway → agent call → Langfuse trace appears
 - [ ] L0 summary written

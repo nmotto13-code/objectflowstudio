@@ -72,10 +72,18 @@ A plain-language record of what each piece of infrastructure does for the platfo
 
 ## Planned, not yet provisioned
 
-### ⚪ Vercel — Next.js frontend hosting
+### ✅ Vercel — Next.js frontend hosting
 **Role in the product:** Runs the customer-facing web app. Handles HTTPS, global CDN, automatic preview deployments for every git branch, and edge caching. Whenever a user hits the ObjectFlow URL, Vercel serves them.
 
 **Why not Railway for this too:** Vercel is purpose-built for Next.js — faster cold starts, better caching, automatic image optimization, and previews are first-class. Railway is excellent at long-running services; Vercel is excellent at user-facing pages. Using each for what it's best at.
+
+**What's wired today:** Project `ace-creative/objectflow-studio-web` (id `prj_0U3qHCJXmvMVadpU7OaGVnRnwQSz`) with Node 24.x, framework preset Next.js, Root Directory `objectflow-studio/apps/web` so Vercel auto-detects the pnpm workspace at `objectflow-studio/` and installs from there. First production deploy `dpl_DSa4FNRLrh8QdBknGKhssDbeHstp` on commit `[uncommitted: next@15.5.19]` is live with three stable aliases — `objectflow-studio-web.vercel.app` (canonical), `objectflow-studio-web-ace-creative.vercel.app`, and `objectflow-studio-web-nmotto13-code-ace-creative.vercel.app`. All routes built green: `/`, `/_not-found`, `/api/health`, `/api/health/db`, `/debug-sentry`, `/protected`, plus 154 kB compiled middleware. Doppler `dev` config syncs to all three Vercel environments (Production, Preview, Development) via three separate Doppler→Vercel integrations — 34 app secrets present in each, verified via `vercel env ls`. Deployment Protection is on by default (Vercel SSO), so preview URLs return 401 to unauthenticated requests; that's a feature, not a bug.
+
+**Build cache:** 349 MB build cache uploaded after the first prod deploy; subsequent deploys complete in seconds rather than ~3 minutes.
+
+**Forced security upgrade during initial deploy:** Vercel blocked Next.js 15.1.2 with `deploy_failed: Vulnerable version of Next.js detected` (CVE-2025-29927 middleware bypass, fixed in 15.2.3). Upgraded to **next@15.5.19** + **eslint-config-next@15.5.19** to unblock; Next 16 major upgrade is a planned L1 task.
+
+**Known follow-ups:** (1) **Doppler-config split** — all three Vercel environments currently read from the `dev` Doppler config, which means Production runs with localhost URLs (`APP_BASE_URL=http://localhost:3000`, etc.). L1 will create a `prd` Doppler config with real production URLs + production Auth0 tenant + production Railway DB and re-point the Production sync at it. (2) **GitHub auto-deploy not yet connected** — `vercel git connect` failed because the Vercel GitHub App isn't installed on the `nmotto13-code` account; until that's done, deploys must run via `vercel deploy --prod` from local. (3) **Auth0 callback allowlist** still scoped to localhost; production URLs need to be added to Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins on the Auth0 tenant before browser-based auth will work against the deployed app.
 
 ---
 

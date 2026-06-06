@@ -14,12 +14,12 @@ dist/
 .turbo/
 
 # Environment / secrets — never commit
+# Catch-all: ignores .env, .env.local, .env.recheck, .env.vercel.*,
+# .env.pull, and any other .env.<suffix>. The negation keeps the
+# .env.example placeholder template tracked.
 .env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # IDE
 .idea/

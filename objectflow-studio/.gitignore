@@ -28,12 +28,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
+# local env files — catch-all (covers .env, .env.local, .env.recheck,
+# .env.vercel.preview, .env.pull, anything ending in .local, etc.)
+# Explicit !.env.example keeps the placeholder template tracked.
 .env
-.env*.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # vercel
 .vercel
