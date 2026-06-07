@@ -10,20 +10,28 @@
 //     anthropic.messages.create() call: model, input, output, usage, latency)
 //
 // History on the architecture:
-//   We initially used `@opentelemetry/sdk-node`'s `NodeSDK({ spanProcessors })`
-//   convenience wrapper, but diagnostic instrumentation on Railway proved
-//   sdk-node@0.218.0 silently dropped the processors — synthetic spans reached
-//   a real Tracer, were ended, and never invoked any processor's `onEnd`. The
-//   resulting Langfuse project showed zero traces despite every other signal
-//   being healthy. Direct `NodeTracerProvider` registration is the documented
-//   OTel v2.x pattern and side-steps the issue. `registerInstrumentations`
-//   handles the Anthropic SDK patching.
+//   Two pitfalls that took a multi-round diagnostic to find on Railway:
+//
+//   1. @sentry/node v8 auto-registers its OWN global OTel TracerProvider
+//      during Sentry.init(). That happens BEFORE telemetry.ts runs (server.ts
+//      imports sentry.ts second, telemetry.ts third). When telemetry.ts then
+//      called provider.register(), OTel silently no-op'd because the API
+//      only accepts the first global provider. Every span we created went
+//      to Sentry's processor, none reached Langfuse — and Sentry doesn't
+//      surface that fact in any log. Fix in sentry.ts: pass
+//      `skipOpenTelemetrySetup: true` so Langfuse owns the provider.
+//
+//   2. `@opentelemetry/sdk-node`'s `NodeSDK({ spanProcessors })` wrapper at
+//      0.218.0 was tested and appears to wire processors fine, but moving
+//      to direct `NodeTracerProvider({ spanProcessors })` registration —
+//      the documented OTel v2.x pattern — is simpler and avoids any future
+//      auto-config surprises from sdk-node. `registerInstrumentations` then
+//      handles the Anthropic SDK patching against our explicit provider.
 //
 // Every Anthropic SDK call across the worker — including future agents like
 // IngestionAgent, SchemaInferenceAgent, etc. — will produce a Langfuse trace
 // automatically without changes to the agent code.
 
-import { trace as otelTrace } from '@opentelemetry/api';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { LangfuseSpanProcessor, isDefaultExportSpan } from '@langfuse/otel';
@@ -84,12 +92,6 @@ if (process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY) {
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
 
-  // Boot sanity check: confirm the global tracer provider got registered.
-  // `ProxyTracerProvider` with a real delegate is expected — that's how the
-  // OTel API exposes the registered provider.
-  const probeTracer = otelTrace.getTracer('telemetry-self-probe');
-  const probeSpan = probeTracer.startSpan('telemetry-boot-probe');
-  probeSpan.end();
   console.log('[telemetry] Langfuse OTel + Anthropic auto-instrumentation initialized');
 } else {
   console.log('[telemetry] Langfuse keys not set — skipping telemetry init');
