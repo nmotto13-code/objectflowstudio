@@ -1,0 +1,19 @@
+# Force Node 22 + pnpm in Railway's Nixpacks builder.
+#
+# Why: package.json declares engines.node ">=22" which Nixpacks resolves
+# to the newest matching major (24.x), and .nvmrc + NIXPACKS_NODE_VERSION
+# env var did not override that path. Node 24.10.x has a known
+# corepack+pnpm crash (ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING in
+# pnpm.cjs:3:1) that breaks `pnpm install` immediately. Fixed in 24.11
+# but Railway's Nixpacks toolchain is still pulling 24.10.
+#
+# Pinning the exact Nix package removes version resolution from the
+# equation. Our tsup bundle targets node22 anyway, so this is the
+# canonical runtime.
+providers = ["node"]
+
+[phases.setup]
+# Just nodejs_22. pnpm comes from corepack reading our
+# packageManager field (pnpm@11.5.0), which works fine under
+# Node 22's stable corepack.
+nixPkgs = ["nodejs_22"]
