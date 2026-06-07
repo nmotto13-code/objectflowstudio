@@ -22,3 +22,17 @@ if (existsSync(envPath)) {
   // pre-Doppler. With Doppler, this file usually doesn't exist.
   config({ path: envPath, override: true });
 }
+
+// L0 bridge: until we split dev vs prd Doppler configs (L1 work), the
+// Railway production deploy reads the same dev Doppler config the local
+// devs use — which sets INNGEST_DEV=1 so devs can point at the local
+// Inngest dev server. That's wrong for the deployed worker: with
+// INNGEST_DEV=1 the SDK runs unsigned dev mode, and Inngest Cloud
+// rightly refuses to sync the app ("SDK response was not signed").
+// Detect we're running on Railway via the platform-set
+// RAILWAY_ENVIRONMENT var (which Doppler can't override — it's injected
+// by Railway itself, not by integrations) and unset INNGEST_DEV before
+// any module reads it.
+if (process.env.RAILWAY_ENVIRONMENT && process.env.INNGEST_DEV) {
+  delete process.env.INNGEST_DEV;
+}
