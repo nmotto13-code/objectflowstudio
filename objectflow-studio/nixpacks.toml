@@ -1,19 +1,25 @@
-# Force Node 22 + pnpm in Railway's Nixpacks builder.
+# Railway/Nixpacks build configuration.
 #
-# Why: package.json declares engines.node ">=22" which Nixpacks resolves
-# to the newest matching major (24.x), and .nvmrc + NIXPACKS_NODE_VERSION
-# env var did not override that path. Node 24.10.x has a known
-# corepack+pnpm crash (ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING in
-# pnpm.cjs:3:1) that breaks `pnpm install` immediately. Fixed in 24.11
-# but Railway's Nixpacks toolchain is still pulling 24.10.
+# Node 22, with pnpm installed VIA NPM rather than corepack. Why:
+# corepack's wrapper for pnpm@11.5.0 (pnpm.cjs) uses a top-level
+# dynamic import() that crashes with ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
+# on both Node 22.19 and Node 24.10. Bypassing the corepack shim
+# entirely by `npm install -g pnpm@<version>` gives us the real pnpm
+# binary with no wrapper layer — works reliably across Node majors.
 #
-# Pinning the exact Nix package removes version resolution from the
-# equation. Our tsup bundle targets node22 anyway, so this is the
-# canonical runtime.
+# Build phase runs the tsup bundle for the worker (workspace-aware via
+# pnpm filter). Start command lives in railway.json so it stays close
+# to the health-check + restart-policy config.
 providers = ["node"]
 
 [phases.setup]
-# Just nodejs_22. pnpm comes from corepack reading our
-# packageManager field (pnpm@11.5.0), which works fine under
-# Node 22's stable corepack.
 nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = [
+  "npm install -g pnpm@11.5.0",
+  "pnpm install --frozen-lockfile"
+]
+
+[phases.build]
+cmds = ["pnpm --filter @objectflow/worker build"]
