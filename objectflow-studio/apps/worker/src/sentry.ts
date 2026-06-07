@@ -17,7 +17,19 @@ if (dsn) {
     environment: process.env.NODE_ENV ?? 'development',
     release: process.env.SENTRY_RELEASE,
 
-    // Performance: 100% sampling in dev, drop to ~0.1 in prod via env override.
+    // Disable Sentry's auto OTel setup. Without this flag, @sentry/node v8
+    // registers its OWN global TracerProvider during init() — which happens
+    // before telemetry.ts runs — and then our NodeTracerProvider.register()
+    // call no-ops because OTel's API only accepts one global provider per
+    // process. Result: spans get routed to Sentry's processor and never
+    // reach Langfuse. Langfuse is our system of record for agent traces
+    // (model/tokens/cost), so it owns the OTel provider; Sentry stays in
+    // its lane (error capture via beforeSend + the Fastify setErrorHandler).
+    // We give up Sentry's performance tracing here, which we don't use.
+    skipOpenTelemetrySetup: true,
+
+    // tracesSampleRate becomes a no-op once skipOpenTelemetrySetup is true,
+    // but kept in env for the day we re-enable a unified OTel setup.
     tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? '1.0'),
     integrations: [],
 
@@ -34,7 +46,7 @@ if (dsn) {
     },
   });
 
-  console.log('[sentry] worker initialized');
+  console.log('[sentry] worker initialized (OTel setup skipped — owned by telemetry.ts)');
 } else {
   console.log('[sentry] no DSN — skipping worker init');
 }
