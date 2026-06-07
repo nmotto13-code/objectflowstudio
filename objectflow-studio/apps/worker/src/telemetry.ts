@@ -3,48 +3,33 @@
 // the target module is required/imported.
 //
 // Sets up:
-//   - @opentelemetry/sdk-node (Node OTel runtime)
+//   - @opentelemetry/sdk-trace-node NodeTracerProvider (with our processors
+//     attached via constructor `spanProcessors`)
 //   - @langfuse/otel LangfuseSpanProcessor (exports spans to Langfuse Cloud)
 //   - @arizeai/openinference-instrumentation-anthropic (auto-traces every
 //     anthropic.messages.create() call: model, input, output, usage, latency)
+//
+// History on the architecture:
+//   We initially used `@opentelemetry/sdk-node`'s `NodeSDK({ spanProcessors })`
+//   convenience wrapper, but diagnostic instrumentation on Railway proved
+//   sdk-node@0.218.0 silently dropped the processors — synthetic spans reached
+//   a real Tracer, were ended, and never invoked any processor's `onEnd`. The
+//   resulting Langfuse project showed zero traces despite every other signal
+//   being healthy. Direct `NodeTracerProvider` registration is the documented
+//   OTel v2.x pattern and side-steps the issue. `registerInstrumentations`
+//   handles the Anthropic SDK patching.
 //
 // Every Anthropic SDK call across the worker — including future agents like
 // IngestionAgent, SchemaInferenceAgent, etc. — will produce a Langfuse trace
 // automatically without changes to the agent code.
 
-import { NodeSDK } from '@opentelemetry/sdk-node';
+import { trace as otelTrace } from '@opentelemetry/api';
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { LangfuseSpanProcessor, isDefaultExportSpan } from '@langfuse/otel';
 import { AnthropicInstrumentation } from '@arizeai/openinference-instrumentation-anthropic';
-import { trace as otelTrace } from '@opentelemetry/api';
-import type { SpanProcessor, ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import type { Context } from '@opentelemetry/api';
 
-// Diagnostic SpanProcessor for the L0->L1 Langfuse export gap. Runs in
-// parallel with LangfuseSpanProcessor — if our onEnd fires but Langfuse's
-// shouldExportSpan log doesn't, the SDK isn't actually registering Langfuse
-// (Langfuse-side bug or config mismatch). If neither fires, the global
-// TracerProvider isn't the NodeSDK one (API version split or SDK didn't
-// actually register).
-class DiagnosticSpanProcessor implements SpanProcessor {
-  onStart(span: ReadableSpan, _parentContext: Context): void {
-    console.log(
-      `[telemetry-debug] diag onStart — name="${span.name}" scope="${span.instrumentationScope.name}"`,
-    );
-  }
-  onEnd(span: ReadableSpan): void {
-    console.log(
-      `[telemetry-debug] diag onEnd — name="${span.name}" scope="${span.instrumentationScope.name}" durationNs=${span.duration[0] * 1e9 + span.duration[1]}`,
-    );
-  }
-  shutdown(): Promise<void> {
-    return Promise.resolve();
-  }
-  forceFlush(): Promise<void> {
-    return Promise.resolve();
-  }
-}
-
-let _sdk: NodeSDK | undefined;
+let _provider: NodeTracerProvider | undefined;
 let _langfuseProcessor: LangfuseSpanProcessor | undefined;
 
 if (process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY) {
@@ -67,53 +52,31 @@ if (process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY) {
     // the default allowlist AND include the scopes we explicitly want.
     shouldExportSpan: ({ otelSpan }) => {
       const scope = otelSpan.instrumentationScope.name;
-      const decision =
+      return (
         isDefaultExportSpan(otelSpan) ||
         scope.startsWith('@arizeai/openinference') ||
-        scope === 'objectflow-worker';
-      // Diagnostic for the L0->L1 Langfuse trace export gap: log every span
-      // the processor evaluates so we can tell (from Railway logs) whether
-      // spans are even reaching the LangfuseSpanProcessor on production runs.
-      // - lines present, exported=true → spans flow; failure is downstream
-      //   (Langfuse export call or auth)
-      // - lines present, exported=false → filter is too strict
-      // - lines absent for a Completed Inngest run → instrumentation isn't
-      //   producing spans (tracer is no-op or SDK didn't register globally)
-      // Remove this log once the trace pipeline is verified end-to-end.
-      console.log(
-        `[telemetry-debug] span seen — scope="${scope}" name="${otelSpan.name}" exported=${decision}`,
+        scope === 'objectflow-worker'
       );
-      return decision;
     },
   });
 
-  _sdk = new NodeSDK({
-    spanProcessors: [_langfuseProcessor, new DiagnosticSpanProcessor()],
+  // Direct NodeTracerProvider with processors in the constructor — the v2.x
+  // OTel pattern. Then register() to make it the global provider.
+  _provider = new NodeTracerProvider({
+    spanProcessors: [_langfuseProcessor],
+  });
+  _provider.register();
+
+  // Register the Anthropic instrumentation against the now-global provider.
+  registerInstrumentations({
     instrumentations: [anthropicInstrumentation],
   });
-  _sdk.start();
-
-  // After SDK start, log what the global tracer provider actually is and
-  // whether the returned tracer is a real one (vs the NoopTracer that's
-  // returned when no provider is registered).
-  const globalProvider = otelTrace.getTracerProvider();
-  const probeTracer = otelTrace.getTracer('telemetry-self-probe');
-  console.log(
-    `[telemetry-debug] global provider class="${globalProvider.constructor.name}" tracer class="${probeTracer.constructor.name}"`,
-  );
-  // Synthetic span: if onStart/onEnd fire on the diagnostic processor for
-  // this span, the SDK wiring works and the bug is in agent code; if not,
-  // the wiring is broken at the SDK level.
-  const probeSpan = probeTracer.startSpan('telemetry-self-probe-span');
-  probeSpan.setAttribute('telemetry.probe', true);
-  probeSpan.end();
-  console.log('[telemetry-debug] synthetic probe span ended');
 
   // Graceful shutdown — ensure spans are flushed on SIGTERM/SIGINT.
   const shutdown = async () => {
     try {
       await _langfuseProcessor?.forceFlush();
-      await _sdk?.shutdown();
+      await _provider?.shutdown();
     } catch (err) {
       console.error('Telemetry shutdown error:', err);
     }
@@ -121,6 +84,12 @@ if (process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY) {
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
 
+  // Boot sanity check: confirm the global tracer provider got registered.
+  // `ProxyTracerProvider` with a real delegate is expected — that's how the
+  // OTel API exposes the registered provider.
+  const probeTracer = otelTrace.getTracer('telemetry-self-probe');
+  const probeSpan = probeTracer.startSpan('telemetry-boot-probe');
+  probeSpan.end();
   console.log('[telemetry] Langfuse OTel + Anthropic auto-instrumentation initialized');
 } else {
   console.log('[telemetry] Langfuse keys not set — skipping telemetry init');
