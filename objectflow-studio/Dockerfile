@@ -47,7 +47,14 @@ RUN pnpm --filter @objectflow/worker build
 # This is the pnpm-native way to produce a portable app directory —
 # resolves the workspace symlinks into a real directory tree and
 # drops devDependencies.
-RUN pnpm deploy --filter @objectflow/worker --prod /deploy
+#
+# --legacy is required on pnpm v10+ because the new default deploy
+# mode wants "inject-workspace-packages=true" (which would physically
+# copy workspace .ts source into each consumer's node_modules). We
+# already handle that inlining at the tsup layer — workspace TS gets
+# bundled into dist/server.js — so we only need pnpm deploy to copy
+# external runtime deps. --legacy gives us exactly that behavior.
+RUN pnpm deploy --legacy --filter @objectflow/worker --prod /deploy
 
 # -----------------------------------------------------------------------------
 # Stage 2: runtime
