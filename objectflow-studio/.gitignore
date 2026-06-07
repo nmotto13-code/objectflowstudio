@@ -38,6 +38,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# graphify — regenerable code knowledge graph artifacts
+# (committed: .claude/skills/graphify/SKILL.md + CLAUDE.md graphify section)
+.graphify/
+
 # IDEs
 .idea/
 .vscode/*

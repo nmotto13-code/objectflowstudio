@@ -4,7 +4,7 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 
 **Legend:** `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
-**Overall status:** L0 in progress
+**Overall status:** L0 done (2026-06-06) — full deploy pipeline verified end-to-end through Anthropic; Langfuse trace export deferred to L1. L1 starts next.
 
 ---
 
@@ -25,7 +25,8 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 
 ## L0 — Foundation
 
-**Status:** In progress (started 2026-05-30)
+**Status:** Done 2026-06-06 — full chain (Vercel → Inngest Cloud → Railway worker → Anthropic) verified live; Langfuse trace export is the one piece that didn't flow through and is documented as the first L1 task.
+**Started:** 2026-05-30
 **Goal:** Production-grade skeleton — every integration smoke-tested end to end before any feature work.
 
 ### Features
@@ -61,9 +62,9 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 - [x] Wire Better Stack for logs (`@logtail/pino` transport, multi-target to stdout + Better Stack; verified live in dashboard — startup, request lifecycle, error capture all flowing. Web-side source pending.)
 - [x] GitHub Actions CI: install + lint + typecheck + build + test on PR + push-to-main (`.github/workflows/ci.yml`; first run green in 1m 44s on commit `63ad178`; pnpm + turbo caching; concurrency cancels superseded runs)
 - [x] Deploy `apps/web` to Vercel — project `ace-creative/objectflow-studio-web`, production live at `https://objectflow-studio-web.vercel.app` (deployment `dpl_DSa4FNRLrh8QdBknGKhssDbeHstp`); 6 routes + 154kB middleware built green on Next.js 15.5.19 (forced upgrade from 15.1.2 — Vercel blocked the older version over CVE-2025-29927). Doppler→Vercel sync covers all 3 environments with 34 app secrets each. Vercel SSO Deployment Protection on (401 to unauth requests is expected). Two carry-overs to L1: split a `prd` Doppler config so Production stops reading dev URLs, and install the Vercel GitHub App so pushes auto-deploy.
-- [ ] Deploy `apps/worker` to Railway
-- [ ] End-to-end live smoke: hit Vercel URL → login → trigger Inngest workflow on Railway → agent call → Langfuse trace appears
-- [ ] L0 summary written
+- [x] Deploy `apps/worker` to Railway — service `objectflow-worker` in project `objectflow-studio` (alongside Postgres + Redis), public domain `https://objectflow-worker-production.up.railway.app`. Built via multi-stage Dockerfile (Node 22 alpine, `npm install -g pnpm@11.5.0` to bypass corepack's broken pnpm shim, tsup bundles workspace TS into a single `dist/server.js`, `pnpm deploy --legacy --prod /deploy` produces a self-contained prod image, runtime stage runs as `node` user). Doppler→Railway sync mirrors the 34 dev-config secrets. `RAILWAY_ENVIRONMENT`-gated guard in `load-env.ts` strips `INNGEST_DEV` at startup so the SDK runs cloud-mode (signed responses) without breaking local dev. Health: `/health` → 200, `/api/inngest` → 401 to unauth requests (correct cloud-mode behavior), `/health/db` → 200 round-trips to Postgres 18.4. Required four iterations through Nixpacks before pivoting to Dockerfile — full chronology in commit history `08d2409..6fe8e97`.
+- [x] End-to-end live smoke verified through Anthropic — `system/smoke.test.requested` fired via the Inngest dashboard, Inngest Cloud signed + delivered the event to Railway, `smoke-test-agent` function ran for 1947ms (the Anthropic Claude Sonnet 4.6 call), returned `{ ok: true, agentResponse: "ObjectFlow L0 ready" }`, status `Completed` in Inngest. Better Stack received every log line. **Langfuse trace did not appear** — telemetry initialized cleanly at boot with correct keys (`pk-lf-61525b05...`) and `https://us.cloud.langfuse.com` base URL, the manual `objectflow-worker` tracer + OpenInference Anthropic instrumentation both registered, but no spans landed in the project (verified empty via both Langfuse API and dashboard UI). Lifted to L1 task `Wire Langfuse trace export through the worker bundle`. Likely root cause: version mismatch between `@arizeai/openinference-instrumentation-anthropic@^0.1.13` and `@anthropic-ai/sdk@^0.100.0`, or OTel SDK/API hoisting under tsup that breaks `manuallyInstrument(Anthropic)` patch timing. Investigation path: pin the Anthropic SDK to whatever range the instrumentation targets, add Langfuse SDK debug logging at trace level, verify spans reach the BatchSpanProcessor by attaching a console-logging processor in parallel.
+- [x] L0 summary written
 
 ---
 
@@ -352,6 +353,14 @@ Living tracker. Updated as work lands. Checkboxes are the source of truth; new i
 ## Newly discovered tasks (added as work proceeds)
 
 - [x] **Free disk space on C:** done 2026-05-30 by deleting `C:\Users\blued\StrainProto`; freed to 9.1 GB available.
+
+### L0 → L1 carry-overs (priority for early L1)
+
+- [ ] **Wire Langfuse trace export through the worker bundle.** Telemetry initializes in production (correct keys, baseUrl, `_sdk.start()` completes, no error logs) but no spans land in the `objectFlowStudio` Langfuse project from Railway-deployed smoke runs — verified empty via both API and dashboard UI after a Completed Inngest run that demonstrably called Anthropic for 1.9s. Most likely a version mismatch between `@arizeai/openinference-instrumentation-anthropic@^0.1.13` and `@anthropic-ai/sdk@^0.100.0`, or a tsup bundling reorder that breaks the `manuallyInstrument(Anthropic)` patch timing. Investigation: (1) add a console-logging SpanProcessor in parallel to LangfuseSpanProcessor to confirm whether spans reach the processor at all, (2) check OpenInference's supported Anthropic SDK version range, (3) consider replacing `@arizeai/openinference-instrumentation-anthropic` with Langfuse's first-party Anthropic SDK wrapping pattern (`observeAnthropic` from `langfuse` SDK).
+- [ ] **Split `prd` Doppler config and re-point production syncs.** Both Vercel Production and Railway production currently read the `dev` Doppler config — that's why the worker had `INNGEST_DEV=1` in production and we patched it via `RAILWAY_ENVIRONMENT` guard, and why the Vercel-deployed Next.js still has `APP_BASE_URL=http://localhost:3000` so its Auth0 flow can't complete against the deployed host. Create a `prd` Doppler config with production URLs + production Auth0 tenant + production Railway DB (or reuse current Railway DB for L1 since we don't have separate prod data yet), then update the three Doppler→Vercel syncs (Production-targeted ones) and the one Doppler→Railway sync to source from `prd`. The `RAILWAY_ENVIRONMENT` guard in `load-env.ts` becomes a no-op and can be removed.
+- [ ] **Install Vercel GitHub App on `nmotto13-code`.** `vercel git connect` failed because the app isn't installed on the account — until it is, Vercel deploys must run via `vercel deploy --prod` from local. Manual one-click install through Vercel's GitHub integration page, then `vercel git connect` succeeds and pushes auto-deploy. Symmetrical to Railway, which already auto-deploys on push because Railway's GitHub App was set up during service creation.
+- [ ] **Wire a Better Stack source for the Next.js web app.** Worker logs flow to Better Stack via `@logtail/pino`; the web app doesn't ship logs anywhere yet. Needs its own source and a Next.js-side logger (Pino isn't built-in to Next; could use a middleware-based logger or just structured `console` + the Vercel log-drain pattern).
+- [ ] **Re-test Auth0 login against the Vercel-deployed app once `prd` Doppler split lands.** L0 added the Vercel URLs to Auth0's Allowed Callback/Logout/Web Origins, but Auth0 SDK in the deployed app calculates the callback URL from `APP_BASE_URL` env which currently points at localhost — so the flow can't actually complete end-to-end from a browser hitting the Vercel domain. Resolves when the Doppler split above lands and `APP_BASE_URL` becomes the Vercel URL in production.
 
 ---
 
