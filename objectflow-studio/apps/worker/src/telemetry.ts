@@ -15,6 +15,34 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { LangfuseSpanProcessor, isDefaultExportSpan } from '@langfuse/otel';
 import { AnthropicInstrumentation } from '@arizeai/openinference-instrumentation-anthropic';
+import { trace as otelTrace } from '@opentelemetry/api';
+import type { SpanProcessor, ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { Context } from '@opentelemetry/api';
+
+// Diagnostic SpanProcessor for the L0->L1 Langfuse export gap. Runs in
+// parallel with LangfuseSpanProcessor — if our onEnd fires but Langfuse's
+// shouldExportSpan log doesn't, the SDK isn't actually registering Langfuse
+// (Langfuse-side bug or config mismatch). If neither fires, the global
+// TracerProvider isn't the NodeSDK one (API version split or SDK didn't
+// actually register).
+class DiagnosticSpanProcessor implements SpanProcessor {
+  onStart(span: ReadableSpan, _parentContext: Context): void {
+    console.log(
+      `[telemetry-debug] diag onStart — name="${span.name}" scope="${span.instrumentationScope.name}"`,
+    );
+  }
+  onEnd(span: ReadableSpan): void {
+    console.log(
+      `[telemetry-debug] diag onEnd — name="${span.name}" scope="${span.instrumentationScope.name}" durationNs=${span.duration[0] * 1e9 + span.duration[1]}`,
+    );
+  }
+  shutdown(): Promise<void> {
+    return Promise.resolve();
+  }
+  forceFlush(): Promise<void> {
+    return Promise.resolve();
+  }
+}
 
 let _sdk: NodeSDK | undefined;
 let _langfuseProcessor: LangfuseSpanProcessor | undefined;
@@ -60,10 +88,26 @@ if (process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY) {
   });
 
   _sdk = new NodeSDK({
-    spanProcessors: [_langfuseProcessor],
+    spanProcessors: [_langfuseProcessor, new DiagnosticSpanProcessor()],
     instrumentations: [anthropicInstrumentation],
   });
   _sdk.start();
+
+  // After SDK start, log what the global tracer provider actually is and
+  // whether the returned tracer is a real one (vs the NoopTracer that's
+  // returned when no provider is registered).
+  const globalProvider = otelTrace.getTracerProvider();
+  const probeTracer = otelTrace.getTracer('telemetry-self-probe');
+  console.log(
+    `[telemetry-debug] global provider class="${globalProvider.constructor.name}" tracer class="${probeTracer.constructor.name}"`,
+  );
+  // Synthetic span: if onStart/onEnd fire on the diagnostic processor for
+  // this span, the SDK wiring works and the bug is in agent code; if not,
+  // the wiring is broken at the SDK level.
+  const probeSpan = probeTracer.startSpan('telemetry-self-probe-span');
+  probeSpan.setAttribute('telemetry.probe', true);
+  probeSpan.end();
+  console.log('[telemetry-debug] synthetic probe span ended');
 
   // Graceful shutdown — ensure spans are flushed on SIGTERM/SIGINT.
   const shutdown = async () => {
