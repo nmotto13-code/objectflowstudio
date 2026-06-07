@@ -39,11 +39,23 @@ if (process.env.LANGFUSE_PUBLIC_KEY && process.env.LANGFUSE_SECRET_KEY) {
     // the default allowlist AND include the scopes we explicitly want.
     shouldExportSpan: ({ otelSpan }) => {
       const scope = otelSpan.instrumentationScope.name;
-      return (
+      const decision =
         isDefaultExportSpan(otelSpan) ||
         scope.startsWith('@arizeai/openinference') ||
-        scope === 'objectflow-worker'
+        scope === 'objectflow-worker';
+      // Diagnostic for the L0->L1 Langfuse trace export gap: log every span
+      // the processor evaluates so we can tell (from Railway logs) whether
+      // spans are even reaching the LangfuseSpanProcessor on production runs.
+      // - lines present, exported=true → spans flow; failure is downstream
+      //   (Langfuse export call or auth)
+      // - lines present, exported=false → filter is too strict
+      // - lines absent for a Completed Inngest run → instrumentation isn't
+      //   producing spans (tracer is no-op or SDK didn't register globally)
+      // Remove this log once the trace pipeline is verified end-to-end.
+      console.log(
+        `[telemetry-debug] span seen — scope="${scope}" name="${otelSpan.name}" exported=${decision}`,
       );
+      return decision;
     },
   });
 
