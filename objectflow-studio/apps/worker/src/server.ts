@@ -50,10 +50,13 @@ await app.register(helmet);
 await app.register(cors, { origin: true });
 
 // Forward any unhandled Fastify error to Sentry with the request context.
+// fastify v5 types the error parameter as `unknown`-shaped (FastifyError or
+// arbitrary thrown value), so narrow defensively before reading .message.
 app.setErrorHandler((err, req, reply) => {
+  const message = err instanceof Error ? err.message : String(err);
   Sentry.captureException(err, { tags: { route: req.routeOptions?.url ?? req.url } });
   app.log.error(err);
-  reply.status(500).send({ ok: false, error: err.message });
+  reply.status(500).send({ ok: false, error: message });
 });
 
 app.get('/health', async () => ({

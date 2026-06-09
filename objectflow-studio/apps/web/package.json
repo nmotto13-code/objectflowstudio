@@ -18,7 +18,7 @@
     "@objectflow/events": "workspace:*",
     "@objectflow/trpc": "workspace:*",
     "@objectflow/ui": "workspace:*",
-    "@auth0/nextjs-auth0": "^4.0.2",
+    "@auth0/nextjs-auth0": "^4.22.0",
     "@tanstack/react-query": "^5.62.7",
     "@tanstack/react-table": "^8.20.6",
     "@trpc/client": "^11.0.0-rc.660",
